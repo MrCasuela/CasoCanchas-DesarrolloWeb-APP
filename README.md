@@ -61,6 +61,29 @@ Aplicación móvil desarrollada con React Native y Expo para la gestión de rese
    - Escanea el código QR con la app **Expo Go** (Android) o la **Cámara** (iOS)
    - Asegúrate de estar en la misma red WiFi que tu computadora
 
+## 🚀 Configuración para Producción (EAS Build & Google Auth)
+
+Para generar builds de producción (APK/AAB) que soporten Google Sign-In, se han realizado las siguientes configuraciones:
+
+### Archivos Requeridos
+Es obligatorio tener los siguientes archivos en la raíz del proyecto `CasoCanchas/` (no se suben al repo por seguridad):
+- `google-services.json` (Android)
+- `GoogleService-Info.plist` (iOS)
+
+### Configuración Realizada
+- **app.config.js**: Actualizado para vincular los archivos de servicios de Google y definir el `bundleIdentifier` (`com.mrcasuela.CasoCanchas`).
+- **eas.json**: Configurado perfil `preview` para generar APKs directos.
+- **LoginScreen**: Lógica optimizada para obtener tokens de Google de forma robusta.
+
+### Generar APK
+Para generar un APK instalable en Android:
+
+```bash
+eas build -p android --profile preview
+```
+
+> **Nota Importante**: Para que el Login de Google funcione en el APK, debes registrar la huella **SHA-1** de tu credencial de EAS en la consola de Firebase.
+
 ## 📱 Uso de la Aplicación
 
 ### Registro e Inicio de Sesión

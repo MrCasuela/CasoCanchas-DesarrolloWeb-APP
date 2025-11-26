@@ -13,6 +13,13 @@ import {
 import { authService } from '../services/auth.service';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AuthStackParamList } from '../navigation/types';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GOOGLE_CONFIG } from '../constants/firebaseConfig';
+
+// Configurar Google Sign-In
+GoogleSignin.configure({
+  webClientId: GOOGLE_CONFIG.WEB_CLIENT_ID,
+});
 
 type RegisterScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Register'>;
 
@@ -27,6 +34,52 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      
+      console.log('Iniciando Google Sign-In desde registro...');
+      
+      await GoogleSignin.hasPlayServices();
+      console.log('Google Play Services disponible');
+      
+      const userInfo = await GoogleSignin.signIn();
+      
+      console.log('Google sign-in exitoso:', userInfo);
+      
+      const tokens = await GoogleSignin.getTokens();
+      console.log('Tokens obtenidos:', { hasIdToken: !!tokens.idToken, hasAccessToken: !!tokens.accessToken });
+      
+      if (!tokens.idToken) {
+        throw new Error('No se pudo obtener el token de Google');
+      }
+      
+      await authService.loginWithGoogle(tokens.idToken, tokens.accessToken);
+      
+      console.log('Registro con Google completado');
+    } catch (error: any) {
+      console.error('Error en Google register:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      
+      let errorMessage = 'No se pudo registrar con Google';
+      
+      if (error.code === 'SIGN_IN_CANCELLED') {
+        errorMessage = 'Registro cancelado';
+      } else if (error.code === 'IN_PROGRESS') {
+        errorMessage = 'Operación en progreso';
+      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+        errorMessage = 'Google Play Services no disponible';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRegister = async () => {
     if (!nombre || !email || !password || !confirmPassword) {
@@ -59,9 +112,9 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     } catch (error: any) {
       console.error('Error en registro:', error);
       console.error('Error response:', error.response?.data);
-      
+
       let errorMessage = 'No se pudo completar el registro';
-      
+
       if (error.response?.data?.detail) {
         if (typeof error.response.data.detail === 'string') {
           errorMessage = error.response.data.detail;
@@ -71,7 +124,7 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       Alert.alert('Error de registro', errorMessage);
     } finally {
       setLoading(false);
@@ -91,6 +144,7 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Nombre completo *"
+            placeholderTextColor="#999"
             value={nombre}
             onChangeText={setNombre}
             autoCapitalize="words"
@@ -99,6 +153,7 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Email *"
+            placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -109,6 +164,7 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Teléfono (opcional)"
+            placeholderTextColor="#999"
             value={telefono}
             onChangeText={setTelefono}
             keyboardType="phone-pad"
@@ -117,6 +173,7 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Contraseña *"
+            placeholderTextColor="#999"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -126,6 +183,7 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Confirmar contraseña *"
+            placeholderTextColor="#999"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -139,6 +197,16 @@ export const RegisterScreen: React.FC<Props> = ({ navigation }) => {
           >
             <Text style={styles.buttonText}>
               {loading ? 'Creando cuenta...' : 'Registrarse'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.googleButton, loading && styles.buttonDisabled]}
+            onPress={() => handleGoogleLogin()}
+            disabled={loading}
+          >
+            <Text style={[styles.buttonText, styles.googleButtonText]}>
+              Registrarse con Google
             </Text>
           </TouchableOpacity>
 
@@ -192,6 +260,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E0E0E0',
+    color: '#333',
   },
   button: {
     backgroundColor: '#007AFF',
@@ -219,5 +288,14 @@ const styles = StyleSheet.create({
   linkTextBold: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    marginTop: 12,
+  },
+  googleButtonText: {
+    color: '#333333',
   },
 });

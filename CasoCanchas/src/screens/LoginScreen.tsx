@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,13 @@ import {
 import { authService } from '../services/auth.service';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AuthStackParamList } from '../navigation/types';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GOOGLE_CONFIG } from '../constants/firebaseConfig';
+
+// Configurar Google Sign-In
+GoogleSignin.configure({
+  webClientId: GOOGLE_CONFIG.WEB_CLIENT_ID,
+});
 
 type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -24,6 +31,57 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+
+      console.log('Iniciando Google Sign-In...');
+
+      // Verificar si Google Play Services está disponible
+      await GoogleSignin.hasPlayServices();
+      console.log('Google Play Services disponible');
+
+      // Iniciar sesión con Google
+      const userInfo = await GoogleSignin.signIn();
+
+      console.log('Google sign-in exitoso:', userInfo);
+
+      // Obtener el idToken
+      const tokens = await GoogleSignin.getTokens();
+      console.log('Tokens obtenidos:', { hasIdToken: !!tokens.idToken, hasAccessToken: !!tokens.accessToken });
+
+      if (!tokens.idToken) {
+        throw new Error('No se pudo obtener el token de Google');
+      }
+
+      // Enviar al servicio de autenticación
+      await authService.loginWithGoogle(tokens.idToken, tokens.accessToken);
+
+      console.log('Login con Google completado');
+    } catch (error: any) {
+      console.error('Error en Google login:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+
+      let errorMessage = 'No se pudo iniciar sesión con Google';
+
+      if (error.code === 'SIGN_IN_CANCELLED') {
+        errorMessage = 'Inicio de sesión cancelado';
+      } else if (error.code === 'IN_PROGRESS') {
+        errorMessage = 'Operación en progreso';
+      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+        errorMessage = 'Google Play Services no disponible';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Por favor completa todos los campos');
@@ -32,23 +90,23 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
     setLoading(true);
     try {
-      console.log('Iniciando login desde LoginScreen...');
-      const result = await authService.login({ email, password });
-      console.log('Login completado, resultado:', result);
-      // La navegación se manejará automáticamente por el cambio de estado de autenticación
+      console.log('Iniciando login...');
+      await authService.login({ email, password });
+      console.log('Login exitoso');
+      // La navegación se manejará automáticamente por el estado de autenticación en App.tsx
     } catch (error: any) {
-      console.error('Error en handleLogin:', error);
-      
+      console.error('Error en login:', error);
+
       let errorMessage = 'Credenciales incorrectas';
-      
+
       if (error.response?.data?.detail) {
-        errorMessage = typeof error.response.data.detail === 'string' 
-          ? error.response.data.detail 
+        errorMessage = typeof error.response.data.detail === 'string'
+          ? error.response.data.detail
           : JSON.stringify(error.response.data.detail);
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       Alert.alert('Error de inicio de sesión', errorMessage);
     } finally {
       setLoading(false);
@@ -67,6 +125,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
         <TextInput
           style={styles.input}
           placeholder="Email"
+          placeholderTextColor="#999"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -77,6 +136,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
         <TextInput
           style={styles.input}
           placeholder="Contraseña"
+          placeholderTextColor="#999"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -90,6 +150,22 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
         >
           <Text style={styles.buttonText}>
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>O</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <TouchableOpacity
+          style={[styles.googleButton, loading && styles.buttonDisabled]}
+          onPress={handleGoogleLogin}
+          disabled={loading}
+        >
+          <Text style={styles.googleButtonText}>
+            {loading ? 'Conectando...' : '🔍 Continuar con Google'}
           </Text>
         </TouchableOpacity>
 
@@ -138,6 +214,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E0E0E0',
+    color: '#333',
   },
   button: {
     backgroundColor: '#007AFF',
@@ -151,6 +228,34 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    color: '#999',
+    fontSize: 14,
+  },
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+  },
+  googleButtonText: {
+    color: '#333333',
     fontSize: 16,
     fontWeight: '600',
   },

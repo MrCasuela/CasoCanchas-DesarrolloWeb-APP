@@ -18,7 +18,7 @@ export const canchasService = {
         api.get('/api/v1/deportes/'),
       ]);
 
-      const deportesMap = new Map(
+      const deportesMap = new Map<number, string>(
         (deportesRes.data || []).map((d: any) => [d.id_deporte, d.nombre])
       );
 
@@ -44,7 +44,7 @@ export const canchasService = {
         api.get('/api/v1/deportes/'),
       ]);
 
-      const deportesMap = new Map(
+      const deportesMap = new Map<number, string>(
         (deportesRes.data || []).map((d: any) => [d.id_deporte, d.nombre])
       );
 
